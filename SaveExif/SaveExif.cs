@@ -1,5 +1,4 @@
-﻿extern alias lib1;
-using FrooxEngine;
+﻿using FrooxEngine;
 using HarmonyLib;
 using NeosModLoader;
 using System;
@@ -29,7 +28,7 @@ namespace SaveExif
             harmony.PatchAll();
         }
 
-        [HarmonyPatch(typeof(lib1::WindowsPlatformConnector), "NotifyOfScreenshot", new Type[] { typeof(World), typeof(string), typeof(ScreenshotType), typeof(DateTime) })]
+        [HarmonyPatch(typeof(WindowsPlatformConnector), "NotifyOfScreenshot", new Type[] { typeof(World), typeof(string), typeof(ScreenshotType), typeof(DateTime) })]
         class Patch
         {
 
@@ -46,7 +45,7 @@ namespace SaveExif
                 prop.Len = iLen;
             }
 
-            static bool Prefix(bool ___keepOriginalScreenshotFormat, lib1::WindowsPlatformConnector __instance, World world, string file, ScreenshotType type, DateTime timestamp)
+            static bool Prefix(bool ___keepOriginalScreenshotFormat, WindowsPlatformConnector __instance, World world, string file, ScreenshotType type, DateTime timestamp)
             {
                 __instance.Engine.GlobalCoroutineManager.StartTask((Func<Task>)(async () =>
                 {
@@ -62,7 +61,7 @@ namespace SaveExif
                         if (fileType != null)
                             extension = "." + fileType.Extension;
                     }
-                    await lib1::WindowsPlatformConnector.ScreenshotSemaphore.WaitAsync().ConfigureAwait(false);
+                    await WindowsPlatformConnector.ScreenshotSemaphore.WaitAsync().ConfigureAwait(false);
                     try
                     {
                         int num = 1;
@@ -130,7 +129,8 @@ namespace SaveExif
                             $"\"neosVersion\":\"{neosVersion}\",\n" +
                             $"\"takeUserName\":\"{takeUserName}\",\n" +
                             $"\"presentUserIdArray\":[\"{String.Join("\",\"", presentUserIdArray)}\"],\n" +
-                            $"\"presentUserNameArray\":[\"{String.Join("\",\"", presentUserNameArray)}\"]}}";
+                            $"\"presentUserNameArray\":[\"{String.Join("\",\"", presentUserNameArray)}\"],\n" +
+                            $"\"version\":\"1.0.0\"}}";
 
                             byte[] header = { 0x55, 0x4E, 0x49, 0x43, 0x4F, 0x44, 0x45, 0x0 };
                             byte[] content = System.Text.Encoding.Unicode.GetBytes(str);
@@ -173,7 +173,7 @@ namespace SaveExif
                     }
                     finally
                     {
-                        lib1::WindowsPlatformConnector.ScreenshotSemaphore.Release();
+                        WindowsPlatformConnector.ScreenshotSemaphore.Release();
                     }
                 }));
 
