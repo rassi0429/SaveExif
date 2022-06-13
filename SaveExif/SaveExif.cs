@@ -107,7 +107,7 @@ namespace SaveExif
                             locationUrl = locationUrl == null ? "" : locationUrl;
                             var hostUserId = (Engine.Current.WorldManager.FocusedWorld.HostUser.UserID == null ? "" : Engine.Current.WorldManager.FocusedWorld.HostUser.UserID);
                             var hostUserName = Engine.Current.WorldManager.FocusedWorld.HostUser.UserName;
-                            var timeTaken = timestamp.ToString();
+                            var timeTaken = timestamp.ToLocalTime().ToString();
                             var takeUserId = (Engine.Current.WorldManager.FocusedWorld.LocalUser.UserID == null ? "" : Engine.Current.WorldManager.FocusedWorld.LocalUser.UserID);
                             var takeUserName = Engine.Current.WorldManager.FocusedWorld.LocalUser.UserName;
                             var neosVersion = Engine.Version.ToString();
