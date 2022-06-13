@@ -17,7 +17,7 @@ namespace SaveExif
     {
         public override string Name => "SaveExif";
         public override string Author => "kka429";
-        public override string Version => "1.0.0";
+        public override string Version => "1.0.1";
         public override string Link => "https://github.com/rassi0429/SaveExif"; // this line is optional and can be omitted
 
         // Exif Type:  https://github.com/mono/libgdiplus/blob/main/src/gdiplusimaging.h
@@ -104,10 +104,11 @@ namespace SaveExif
 
                             var locationName = Engine.Current.WorldManager.FocusedWorld.GetSessionInfo().Name;
                             var locationUrl = Engine.Current.WorldManager.FocusedWorld.IsPublic ? Engine.Current.WorldManager.FocusedWorld.CorrespondingRecord?.URL.ToString() : "private";
-                            var hostUserId = Engine.Current.WorldManager.FocusedWorld.HostUser.UserID;
+                            locationUrl = locationUrl == null ? "" : locationUrl;
+                            var hostUserId = (Engine.Current.WorldManager.FocusedWorld.HostUser.UserID == null ? "" : Engine.Current.WorldManager.FocusedWorld.HostUser.UserID);
                             var hostUserName = Engine.Current.WorldManager.FocusedWorld.HostUser.UserName;
                             var timeTaken = timestamp.ToString();
-                            var takeUserId = Engine.Current.WorldManager.FocusedWorld.LocalUser.UserID;
+                            var takeUserId = (Engine.Current.WorldManager.FocusedWorld.LocalUser.UserID == null ? "" : Engine.Current.WorldManager.FocusedWorld.LocalUser.UserID);
                             var takeUserName = Engine.Current.WorldManager.FocusedWorld.LocalUser.UserName;
                             var neosVersion = Engine.Version.ToString();
                             var _presentUser = Engine.Current.WorldManager.FocusedWorld.AllUsers;
@@ -115,19 +116,19 @@ namespace SaveExif
                             List<string> presentUserNameArray = new List<string>();
                             foreach(var user in _presentUser)
                             {
-                                presentUserIdArray.Add(user.UserID);
-                                presentUserNameArray.Add(user.UserName);
+                                presentUserIdArray.Add(user.UserID?.Replace("\\", "\\\\").Replace("\"", "\\\""));
+                                presentUserNameArray.Add(user.UserName.Replace("\\", "\\\\").Replace("\"", "\\\""));
                             }
 
-                            string str = $"{{\"locationName\":\"{locationName}\",\n" +
-                            $"\"locationUrl\":\"{locationUrl}\",\n" +
-                            $"\"hostUserId\":\"{hostUserId}\",\n" +
-                            $"\"hostUserName\":\"{hostUserName}\",\n" +
-                            $"\"timeTaken\":\"{timeTaken}\",\n" +
-                            $"\"takeUserId\":\"{takeUserId}\",\n" +
-                            $"\"takeUserName\":\"{takeUserName}\",\n" +
-                            $"\"neosVersion\":\"{neosVersion}\",\n" +
-                            $"\"takeUserName\":\"{takeUserName}\",\n" +
+                            string str = $"{{\"locationName\":\"{locationName?.Replace("\\", "\\\\").Replace("\"", "\\\"")}\",\n" +
+                            $"\"locationUrl\":\"{locationUrl?.Replace("\\", "\\\\").Replace("\"", "\\\"")}\",\n" +
+                            $"\"hostUserId\":\"{hostUserId?.Replace("\\", "\\\\").Replace("\"", "\\\"")}\",\n" +
+                            $"\"hostUserName\":\"{hostUserName?.Replace("\\", "\\\\").Replace("\"", "\\\"")}\",\n" +
+                            $"\"timeTaken\":\"{timeTaken?.Replace("\\", "\\\\").Replace("\"", "\\\"")}\",\n" +
+                            $"\"takeUserId\":\"{takeUserId?.Replace("\\", "\\\\").Replace("\"", "\\\"")}\",\n" +
+                            $"\"takeUserName\":\"{takeUserName?.Replace("\\", "\\\\").Replace("\"", "\\\"")}\",\n" +
+                            $"\"neosVersion\":\"{neosVersion?.Replace("\\", "\\\\").Replace("\"", "\\\"")}\",\n" +
+                            $"\"takeUserName\":\"{takeUserName?.Replace("\\", "\\\\").Replace("\"", "\\\"")}\",\n" +
                             $"\"presentUserIdArray\":[\"{String.Join("\",\"", presentUserIdArray)}\"],\n" +
                             $"\"presentUserNameArray\":[\"{String.Join("\",\"", presentUserNameArray)}\"],\n" +
                             $"\"version\":\"1.0.0\"}}";
