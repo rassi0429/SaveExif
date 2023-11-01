@@ -1,19 +1,19 @@
 ﻿using FrooxEngine;
 using HarmonyLib;
-using NeosModLoader;
 using System;
 using System.Threading.Tasks;
 using System.IO;
 using MimeDetective;
-using CodeX;
-using BaseX;
 using System.Drawing;
 using System.Drawing.Imaging;
 using System.Collections.Generic;
+using ResoniteModLoader;
+using Elements.Assets;
+using Elements.Core;
 
 namespace SaveExif
 {
-    public class SaveExif : NeosMod
+    public class SaveExif : ResoniteMod
     {
         public override string Name => "SaveExif";
         public override string Author => "kka429";
@@ -51,7 +51,7 @@ namespace SaveExif
                 {
                     await new ToBackground();
                     string pictures = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
-                    pictures = Path.Combine(pictures, "Neos VR");
+                    pictures = Path.Combine(pictures, "Resonite");
                     Directory.CreateDirectory(pictures);
                     string filename = timestamp.ToLocalTime().ToString("yyyy-MM-dd HH.mm.ss"); //FIX LOCALTIME
                     string extension = ___keepOriginalScreenshotFormat ? Path.GetExtension(file) : ".jpg";
@@ -86,7 +86,7 @@ namespace SaveExif
                             Image img = Image.FromFile(file + ".tmp");
 
                             PropertyItem w = img.PropertyItems[0];
-                            SetProperty(ref w, 272, "NeosCamera");
+                            SetProperty(ref w, 272, "ResoniteCamera");
                             img.SetPropertyItem(w);
                             PropertyItem w2 = img.PropertyItems[0];
                             SetProperty(ref w2, 271, "FrooxEngine");
@@ -102,15 +102,15 @@ namespace SaveExif
                             w5.Id = 0x9286; //COMMENT
                             w5.Type = 7;
 
-                            var locationName = Engine.Current.WorldManager.FocusedWorld.GetSessionInfo().Name;
-                            var locationUrl = Engine.Current.WorldManager.FocusedWorld.IsPublic ? Engine.Current.WorldManager.FocusedWorld.CorrespondingRecord?.URL.ToString() : "private";
+                            var locationName = Engine.Current.WorldManager.FocusedWorld.Name;
+                            var locationUrl = Engine.Current.WorldManager.FocusedWorld.IsPublic ? Engine.Current.WorldManager.FocusedWorld.RecordURL.ToString() : "private";
                             locationUrl = locationUrl == null ? "" : locationUrl;
                             var hostUserId = (Engine.Current.WorldManager.FocusedWorld.HostUser.UserID == null ? "" : Engine.Current.WorldManager.FocusedWorld.HostUser.UserID);
                             var hostUserName = Engine.Current.WorldManager.FocusedWorld.HostUser.UserName;
                             var timeTaken = timestamp.ToLocalTime().ToString();
                             var takeUserId = (Engine.Current.WorldManager.FocusedWorld.LocalUser.UserID == null ? "" : Engine.Current.WorldManager.FocusedWorld.LocalUser.UserID);
                             var takeUserName = Engine.Current.WorldManager.FocusedWorld.LocalUser.UserName;
-                            var neosVersion = Engine.Version.ToString();
+                            var resoniteVersion = Engine.Version.ToString();
                             var _presentUser = Engine.Current.WorldManager.FocusedWorld.AllUsers;
                             List<string> presentUserIdArray = new List<string>();
                             List<string> presentUserNameArray = new List<string>();
@@ -127,11 +127,11 @@ namespace SaveExif
                             $"\"timeTaken\":\"{timeTaken?.Replace("\\", "\\\\").Replace("\"", "\\\"")}\",\n" +
                             $"\"takeUserId\":\"{takeUserId?.Replace("\\", "\\\\").Replace("\"", "\\\"")}\",\n" +
                             $"\"takeUserName\":\"{takeUserName?.Replace("\\", "\\\\").Replace("\"", "\\\"")}\",\n" +
-                            $"\"neosVersion\":\"{neosVersion?.Replace("\\", "\\\\").Replace("\"", "\\\"")}\",\n" +
+                            $"\"resoniteVersion\":\"{resoniteVersion?.Replace("\\", "\\\\").Replace("\"", "\\\"")}\",\n" +
                             $"\"takeUserName\":\"{takeUserName?.Replace("\\", "\\\\").Replace("\"", "\\\"")}\",\n" +
                             $"\"presentUserIdArray\":[\"{String.Join("\",\"", presentUserIdArray)}\"],\n" +
                             $"\"presentUserNameArray\":[\"{String.Join("\",\"", presentUserNameArray)}\"],\n" +
-                            $"\"version\":\"1.0.0\"}}";
+                            $"\"version\":\"2.0.0\"}}";
 
                             byte[] header = { 0x55, 0x4E, 0x49, 0x43, 0x4F, 0x44, 0x45, 0x0 };
                             byte[] content = System.Text.Encoding.Unicode.GetBytes(str);
@@ -145,8 +145,8 @@ namespace SaveExif
                             PropertyItem w6 = img.PropertyItems[0];
                             w6.Id = 0x010E; //TITLE
                             w6.Type = 2;
-                            w6.Len = 11;
-                            w6.Value = System.Text.Encoding.ASCII.GetBytes("Neos Photo\0");
+                            w6.Len = 15;
+                            w6.Value = System.Text.Encoding.ASCII.GetBytes("Resonite Photo\0");
                             img.SetPropertyItem(w6);
 
                             PropertyItem w7 = img.PropertyItems[0];
@@ -160,8 +160,8 @@ namespace SaveExif
                             PropertyItem w8 = img.PropertyItems[0];
                             w8.Id = 0x0131; //ARTIST
                             w8.Type = 2;
-                            w8.Len = 7;
-                            w8.Value = System.Text.Encoding.ASCII.GetBytes("NeosVR\0");
+                            w8.Len = 9;
+                            w8.Value = System.Text.Encoding.ASCII.GetBytes("Resonite\0");
                             img.SetPropertyItem(w8);
 
                             img.Save(str1);
