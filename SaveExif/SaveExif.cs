@@ -17,8 +17,8 @@ namespace SaveExif
     {
         public override string Name => "SaveExif";
         public override string Author => "kka429";
-        public override string Version => "1.0.1";
-        public override string Link => "https://github.com/rassi0429/SaveExif"; // this line is optional and can be omitted
+        public override string Version => "2.0.1";
+        public override string Link => "https://github.com/rassi0429/SaveExif";
 
         // Exif Type:  https://github.com/mono/libgdiplus/blob/main/src/gdiplusimaging.h
 
@@ -116,7 +116,7 @@ namespace SaveExif
                             List<string> presentUserNameArray = new List<string>();
                             foreach(var user in _presentUser)
                             {
-                                presentUserIdArray.Add(user.UserID?.Replace("\\", "\\\\").Replace("\"", "\\\""));
+                                presentUserIdArray.Add(user.UserID.Replace("\\", "\\\\").Replace("\"", "\\\""));
                                 presentUserNameArray.Add(user.UserName.Replace("\\", "\\\\").Replace("\"", "\\\""));
                             }
 
