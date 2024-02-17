@@ -1,15 +1,12 @@
 ﻿using FrooxEngine;
 using HarmonyLib;
 using System;
-using System.Threading.Tasks;
 using System.IO;
 using MimeDetective;
 using System.Drawing;
-using System.Drawing.Imaging;
-using System.Collections.Generic;
 using ResoniteModLoader;
 using Elements.Assets;
-using Elements.Core;
+using System.Threading.Tasks;
 
 namespace SaveExif
 {
@@ -17,10 +14,10 @@ namespace SaveExif
     {
         public override string Name => "SaveExif";
         public override string Author => "kka429";
-        public override string Version => "2.0.1";
+        public override string Version => "2.1.0";
         public override string Link => "https://github.com/rassi0429/SaveExif";
 
-        // Exif Type:  https://github.com/mono/libgdiplus/blob/main/src/gdiplusimaging.h
+        private static bool _keepOriginalScreenshotFormat = false;
 
         public override void OnEngineInit()
         {
@@ -28,36 +25,85 @@ namespace SaveExif
             harmony.PatchAll();
         }
 
-        [HarmonyPatch(typeof(WindowsPlatformConnector), "NotifyOfScreenshot", new Type[] { typeof(World), typeof(string), typeof(ScreenshotType), typeof(DateTime) })]
-        class Patch
+        [HarmonyPatch(typeof(WindowsPlatformConnector))]
+        class WindowsPlatformConnector_Patch
         {
-
-            private static void SetProperty(ref System.Drawing.Imaging.PropertyItem prop, int iId, string sTxt)
+            [HarmonyPrefix]
+            [HarmonyPatch(nameof(WindowsPlatformConnector.NotifyOfScreenshot))]
+            static bool NotifyOfScreenshot_Prefix()
             {
-                int iLen = sTxt.Length + 1;
-                byte[] bTxt = new Byte[iLen];
-                for (int i = 0; i < iLen - 1; i++)
-                    bTxt[i] = (byte)sTxt[i];
-                bTxt[iLen - 1] = 0x00;
-                prop.Id = iId;
-                prop.Type = 2;
-                prop.Value = bTxt;
-                prop.Len = iLen;
+                // NotifyOfScreenshot_Postfix で代替しているのでこっちは無効化
+                return false;
             }
 
-            static bool Prefix(bool ___keepOriginalScreenshotFormat, WindowsPlatformConnector __instance, World world, string file, ScreenshotType type, DateTime timestamp)
+            [HarmonyPostfix]
+            [HarmonyPatch(nameof(WindowsPlatformConnector.Initialize))]
+            static void Initialize_Postfix(WindowsPlatformConnector __instance)
             {
-                __instance.Engine.GlobalCoroutineManager.StartTask((Func<Task>)(async () =>
+                var updateAction = () =>
                 {
+                    Task.Run(async () =>
+                    {
+                        var result = await __instance.Engine.LocalDB.TryReadVariableAsync<bool>(WindowsPlatformConnector.SCREENSHOT_FORMAT_SETTING);
+                        if (result.hasValue)
+                        {
+                            _keepOriginalScreenshotFormat = result.value;
+                        }
+                    });
+                };
+                updateAction();
+                __instance.Engine.LocalDB.RegisterVariableListener(WindowsPlatformConnector.SCREENSHOT_FORMAT_SETTING, updateAction);
+            }
+        }
+
+        [HarmonyPatch(typeof(PhotoMetadata))]
+        class PhotoMetadata_Patch
+        {
+            // srcPath != dstPath 上書きはできない
+            static void WriteExif(PhotoMetadata photoMetadata, string srcPath, string dstPath)
+            {
+                using (var img = Image.FromFile(srcPath))
+                {
+                    var metadata = new SavedMetadata(photoMetadata);
+                    var ew = new ExifWriter(img);
+                    ew.SetModel("ResoniteCamera");
+                    ew.SetMake("FrooxEngine");
+                    ew.SetDateTimeOriginal(photoMetadata.TimeTaken.Value.ToLocalTime().ToString("yyyy:MM:dd HH:mm:ss"));
+                    ew.SetDescription("Resonite Photo");
+                    ew.SetArtist(metadata.TakeUserName); // Unicodeなユーザ名もいるので本当はダメそう
+                    ew.SetSoftware("Resonite");
+
+                    ew.SetUserComment(metadata.ToJson());
+
+                    img.Save(dstPath);
+                }
+            }
+
+            [HarmonyPostfix]
+            [HarmonyPatch(nameof(PhotoMetadata.NotifyOfScreenshot))]
+            static void NotifyOfScreenshot_Postfix(PhotoMetadata __instance)
+            {
+                // PhotoMetadata を WindowsPlatformConnector.NotifyOfScreenshot に確実に渡すのが面倒なのでここで代替する
+                __instance.StartGlobalTask(async () =>
+                {
+                    var tex = __instance.Slot.GetComponent<StaticTexture2D>();
+                    var url = tex?.URL.Value;
+                    if (url is null) return;
+
                     await new ToBackground();
+                    // キャッシュが効いてるはずなので重複して実行しても大してコストはかからない認識
+                    var tmpPath = await __instance.Engine.AssetManager.GatherAssetFile(url, 100f);
+                    if (tmpPath is null) return;
+
                     string pictures = Environment.GetFolderPath(Environment.SpecialFolder.MyPictures);
-                    pictures = Path.Combine(pictures, "Resonite");
+                    pictures = Path.Combine(pictures, __instance.Engine.Cloud.Platform.Name);
                     Directory.CreateDirectory(pictures);
-                    string filename = timestamp.ToLocalTime().ToString("yyyy-MM-dd HH.mm.ss"); //FIX LOCALTIME
-                    string extension = ___keepOriginalScreenshotFormat ? Path.GetExtension(file) : ".jpg";
+
+                    string filename = __instance.TimeTaken.Value.ToLocalTime().ToString("yyyy-MM-dd HH.mm.ss"); //FIX LOCALTIME
+                    string extension = _keepOriginalScreenshotFormat ? Path.GetExtension(tmpPath) : ".jpg";
                     if (string.IsNullOrWhiteSpace(extension))
                     {
-                        FileType fileType = new FileInfo(file).GetFileType();
+                        FileType fileType = new FileInfo(tmpPath).GetFileType();
                         if (fileType != null)
                             extension = "." + fileType.Extension;
                     }
@@ -70,156 +116,33 @@ namespace SaveExif
                         {
                             string str2 = filename;
                             if (num > 1)
-                                str2 += string.Format(" ({0})", (object)num);
+                                str2 += string.Format(" ({0})", num);
                             str1 = Path.Combine(pictures, str2 + extension);
-                            ++num;
+                            num++;
                         }
                         while (File.Exists(str1));
-                        if (___keepOriginalScreenshotFormat)
+
+                        if (_keepOriginalScreenshotFormat)
                         {
-                            File.Copy(file, str1);
+                            File.Copy(tmpPath, str1);
                             File.SetAttributes(str1, FileAttributes.Normal);
                         }
                         else
                         {
-                            TextureEncoder.ConvertToJPG(file, file + ".tmp");
-                            Image img = Image.FromFile(file + ".tmp");
-
-                            PropertyItem w = img.PropertyItems[0];
-                            SetProperty(ref w, 272, "ResoniteCamera");
-                            img.SetPropertyItem(w);
-                            PropertyItem w2 = img.PropertyItems[0];
-                            SetProperty(ref w2, 271, "FrooxEngine");
-                            img.SetPropertyItem(w2);
-                            PropertyItem w4 = img.PropertyItems[0];
-                            w4.Id = 0x9003; //撮影日時
-                            w4.Type = 2;
-                            w4.Len = 20;
-                            w4.Value = System.Text.Encoding.ASCII.GetBytes(timestamp.ToLocalTime().ToString("yyyy:MM:dd HH:mm:ss"));
-                            img.SetPropertyItem(w4);
-
-                            PropertyItem w5 = img.PropertyItems[0];
-                            w5.Id = 0x9286; //COMMENT
-                            w5.Type = 7;
-
-                            var locationName = Engine.Current.WorldManager.FocusedWorld.Name;
-                            var locationUrl = Engine.Current.WorldManager.FocusedWorld.IsPublic ? Engine.Current.WorldManager.FocusedWorld.RecordURL.ToString() : "private";
-                            locationUrl = locationUrl == null ? "" : locationUrl;
-                            var hostUserId = (Engine.Current.WorldManager.FocusedWorld.HostUser.UserID == null ? "" : Engine.Current.WorldManager.FocusedWorld.HostUser.UserID);
-                            var hostUserName = Engine.Current.WorldManager.FocusedWorld.HostUser.UserName;
-                            var timeTaken = timestamp.ToLocalTime().ToString();
-                            var takeUserId = (Engine.Current.WorldManager.FocusedWorld.LocalUser.UserID == null ? "" : Engine.Current.WorldManager.FocusedWorld.LocalUser.UserID);
-                            var takeUserName = Engine.Current.WorldManager.FocusedWorld.LocalUser.UserName;
-                            var resoniteVersion = Engine.Version.ToString();
-                            var _presentUser = Engine.Current.WorldManager.FocusedWorld.AllUsers;
-                            List<string> presentUserIdArray = new List<string>();
-                            List<string> presentUserNameArray = new List<string>();
-                            foreach(var user in _presentUser)
-                            {
-                                presentUserIdArray.Add(user.UserID.Replace("\\", "\\\\").Replace("\"", "\\\""));
-                                presentUserNameArray.Add(user.UserName.Replace("\\", "\\\\").Replace("\"", "\\\""));
-                            }
-
-                            string str = $"{{\"locationName\":\"{locationName?.Replace("\\", "\\\\").Replace("\"", "\\\"")}\",\n" +
-                            $"\"locationUrl\":\"{locationUrl?.Replace("\\", "\\\\").Replace("\"", "\\\"")}\",\n" +
-                            $"\"hostUserId\":\"{hostUserId?.Replace("\\", "\\\\").Replace("\"", "\\\"")}\",\n" +
-                            $"\"hostUserName\":\"{hostUserName?.Replace("\\", "\\\\").Replace("\"", "\\\"")}\",\n" +
-                            $"\"timeTaken\":\"{timeTaken?.Replace("\\", "\\\\").Replace("\"", "\\\"")}\",\n" +
-                            $"\"takeUserId\":\"{takeUserId?.Replace("\\", "\\\\").Replace("\"", "\\\"")}\",\n" +
-                            $"\"takeUserName\":\"{takeUserName?.Replace("\\", "\\\\").Replace("\"", "\\\"")}\",\n" +
-                            $"\"resoniteVersion\":\"{resoniteVersion?.Replace("\\", "\\\\").Replace("\"", "\\\"")}\",\n" +
-                            $"\"takeUserName\":\"{takeUserName?.Replace("\\", "\\\\").Replace("\"", "\\\"")}\",\n" +
-                            $"\"presentUserIdArray\":[\"{String.Join("\",\"", presentUserIdArray)}\"],\n" +
-                            $"\"presentUserNameArray\":[\"{String.Join("\",\"", presentUserNameArray)}\"],\n" +
-                            $"\"version\":\"2.0.0\"}}";
-
-                            byte[] header = { 0x55, 0x4E, 0x49, 0x43, 0x4F, 0x44, 0x45, 0x0 };
-                            byte[] content = System.Text.Encoding.Unicode.GetBytes(str);
-                            byte[] main = new byte[header.Length + content.Length];
-                            Array.Copy(header, main, header.Length);
-                            Array.Copy(content, 0, main, header.Length, content.Length);
-                            w5.Len = main.Length;
-                            w5.Value = main;
-                            img.SetPropertyItem(w5);
-
-                            PropertyItem w6 = img.PropertyItems[0];
-                            w6.Id = 0x010E; //TITLE
-                            w6.Type = 2;
-                            w6.Len = 15;
-                            w6.Value = System.Text.Encoding.ASCII.GetBytes("Resonite Photo\0");
-                            img.SetPropertyItem(w6);
-
-                            PropertyItem w7 = img.PropertyItems[0];
-                            w7.Id = 0x013B; //ARTIST
-                            w7.Type = 2;
-                            var username = Engine.Current.LocalUserName;
-                            w7.Len = username.Length + 1;
-                            w7.Value = System.Text.Encoding.ASCII.GetBytes(username + "\0");
-                            img.SetPropertyItem(w7);
-
-                            PropertyItem w8 = img.PropertyItems[0];
-                            w8.Id = 0x0131; //ARTIST
-                            w8.Type = 2;
-                            w8.Len = 9;
-                            w8.Value = System.Text.Encoding.ASCII.GetBytes("Resonite\0");
-                            img.SetPropertyItem(w8);
-
-                            img.Save(str1);
-                            img.Dispose();
+                            var convertedPath = tmpPath + ".tmp";
+                            TextureEncoder.ConvertToJPG(tmpPath, convertedPath);
+                            WriteExif(__instance, convertedPath, str1);
                         }
                     }
                     catch (Exception ex)
                     {
-                        UniLog.Error("Exception saving screenshot to Windows:\n" + (object)ex);
+                        Error("Exception saving screenshot to Windows:\n" + ex);
                     }
                     finally
                     {
                         WindowsPlatformConnector.ScreenshotSemaphore.Release();
                     }
-                }));
-
-
-                return false;
-                // __instance.ForEachConnector((Action<IPlatformConnector>)(c => Msg(c.GetType().Assembly)));
-
-                //Msg(file
-                //string[] filename = file.Split('\\');
-                //if (!filename[filename.Length - 1].Contains("jpg")) return;
-                //File.Move(file, file + "d");
-                //Image img = Image.FromFile(file + "d");
-                //System.Drawing.Imaging.PropertyItem w = img.PropertyItems[0];
-                //Msg(w);
-                //w = img.PropertyItems[0];
-                //SetProperty(ref w, 272, "NeosVR kokopi MOD");
-                //img.SetPropertyItem(w);
-                //img.Save(file);
-                //img.Dispose();
-
-                // File.Copy(file, @"C:\Users\neo.KOKOA\Documents\k\" +  filename[filename.Length - 1]);
-                // return true;
-                //FIBITMAP freeImage = __instance.ToFreeImage();
-                //MetadataTag tag = new MetadataTag(FREE_IMAGE_MDMODEL.FIMD_COMMENTS);
-                //tag = new MetadataTag(FREE_IMAGE_MDMODEL.FIMD_COMMENTS);
-                //tag.Key = "KEY1";
-                //tag.Value = 12345;
-                //tag.AddToImage(freeImage);
-
-                //tag = new MetadataTag(FREE_IMAGE_MDMODEL.FIMD_COMMENTS);
-                //tag.Key = "KEY2";
-                //tag.Value = 54321;
-                //tag.AddToImage(freeImage);
-                //Msg("ok");
-                //Msg(extension);
-                //try
-                //{
-                //    __result = TextureEncoder.Encode(freeImage, stream, extension, quality, preserveColorInAlpha);
-                //}
-                //finally
-                //{
-                //    FreeImage.Unload(freeImage);
-                //}
-                //return false;
-                // Msg(FrooxEngine.Engine.Current.WorldManager.FocusedWorld.Name);
+                });
             }
         }
     }

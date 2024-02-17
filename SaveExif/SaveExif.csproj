@@ -13,7 +13,7 @@
     <CopyToMods Condition="'$(CopyToMods)'==''">true</CopyToMods>
     <DebugSymbols Condition="'$(Configuration)'=='Release'">false</DebugSymbols>
     <DebugType Condition="'$(Configuration)'=='Release'">None</DebugType>
-    <Version>2.0.1</Version>
+    <Version>2.1.0</Version>
     <Authors>kka429</Authors>
   </PropertyGroup>
 
@@ -29,6 +29,9 @@
     <Reference Include="FrooxEngine">
       <HintPath>$(AppPath)$(AppName)_Data\Managed\FrooxEngine.dll</HintPath>
     </Reference>
+    <Reference Include="FrooxEngine.Store">
+      <HintPath>$(AppPath)$(AppName)_Data\Managed\FrooxEngine.Store.dll</HintPath>
+    </Reference>
     <Reference Include="Assembly-CSharp">
       <HintPath>$(AppPath)$(AppName)_Data\Managed\Assembly-CSharp.dll</HintPath>
     </Reference>
@@ -38,11 +41,17 @@
     <Reference Include="Elements.Assets">
       <HintPath>$(AppPath)$(AppName)_Data\Managed\Elements.Assets.dll</HintPath>
     </Reference>
-    <Reference Include="Newtonsoft.Json">
-      <HintPath>$(AppPath)$(AppName)_Data\Managed\Newtonsoft.Json.dll</HintPath>
+    <Reference Include="SkyFrost.Base">
+      <HintPath>$(AppPath)$(AppName)_Data\Managed\SkyFrost.Base.dll</HintPath>
     </Reference>
     <Reference Include="MimeDetective">
       <HintPath>$(AppPath)$(AppName)_Data\Managed\MimeDetective.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Text.Json">
+      <HintPath>$(AppPath)$(AppName)_Data\Managed\System.Text.Json.dll</HintPath>
+    </Reference>
+    <Reference Include="System.Threading.Tasks.Extensions">
+      <HintPath>$(AppPath)$(AppName)_Data\Managed\System.Threading.Tasks.Extensions.dll</HintPath>
     </Reference>
   </ItemGroup>
 
