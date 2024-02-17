@@ -38,13 +38,13 @@ namespace SaveExif
             return MakeProperty(id, 2, Encoding.ASCII.GetBytes($"{text}\0"));
         }
 
-        private static readonly byte[] UNICODE_HEADER = { 0x55, 0x4E, 0x49, 0x43, 0x4F, 0x44, 0x45, 0x0 };
         internal PropertyItem MakeUnicodeProperty(int id, string text)
         {
+            var header = new byte[] { 0x55, 0x4E, 0x49, 0x43, 0x4F, 0x44, 0x45, 0x0 };
             var textBytes = Encoding.Unicode.GetBytes(text);
-            var b = new byte[UNICODE_HEADER.Length + textBytes.Length];
-            Buffer.BlockCopy(UNICODE_HEADER, 0, b, 0, UNICODE_HEADER.Length);
-            Buffer.BlockCopy(textBytes, 0, b, UNICODE_HEADER.Length, textBytes.Length);
+            var b = new byte[header.Length + textBytes.Length];
+            Buffer.BlockCopy(header, 0, b, 0, header.Length);
+            Buffer.BlockCopy(textBytes, 0, b, header.Length, textBytes.Length);
             return MakeProperty(id, 7, b);
         }
 
@@ -70,9 +70,9 @@ namespace SaveExif
         /// 撮影日時
         /// </summary>
         /// <param name="value"></param>
-        public void SetDateTimeOriginal(string value)
+        public void SetDateTimeOriginal(DateTime value)
         {
-            _image.SetPropertyItem(MakeAsciiProperty(0x9003, value));
+            _image.SetPropertyItem(MakeAsciiProperty(0x9003, value.ToLocalTime().ToString("yyyy:MM:dd HH:mm:ss")));
         }
 
         /// <summary>

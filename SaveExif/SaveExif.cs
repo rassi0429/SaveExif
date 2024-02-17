@@ -3,10 +3,10 @@ using HarmonyLib;
 using System;
 using System.IO;
 using MimeDetective;
-using System.Drawing;
 using ResoniteModLoader;
-using Elements.Assets;
 using System.Threading.Tasks;
+using FreeImageAPI;
+using System.Text;
 
 namespace SaveExif
 {
@@ -59,23 +59,45 @@ namespace SaveExif
         [HarmonyPatch(typeof(PhotoMetadata))]
         class PhotoMetadata_Patch
         {
-            // srcPath != dstPath 上書きはできない
-            static void WriteExif(PhotoMetadata photoMetadata, string srcPath, string dstPath)
+            static bool HasNonAsciiChars(string value)
             {
-                using (var img = Image.FromFile(srcPath))
+                return Encoding.UTF8.GetByteCount(value) != value.Length;
+            }
+
+            static void SaveImage(PhotoMetadata photoMetadata, string srcPath, string dstPath)
+            {
+                var metadata = new SavedMetadata(photoMetadata);
+                using (var fib = new FreeImageBitmap(srcPath))
                 {
-                    var metadata = new SavedMetadata(photoMetadata);
-                    var ew = new ExifWriter(img);
-                    ew.SetModel("ResoniteCamera");
-                    ew.SetMake("FrooxEngine");
-                    ew.SetDateTimeOriginal(photoMetadata.TimeTaken.Value.ToLocalTime().ToString("yyyy:MM:dd HH:mm:ss"));
-                    ew.SetDescription("Resonite Photo");
-                    ew.SetArtist(metadata.TakeUserName); // Unicodeなユーザ名もいるので本当はダメそう
-                    ew.SetSoftware("Resonite");
+                    // TextureEncoder.ConvertToJPG の処理内容
+                    // EnsureNonHDR
+                    var imgType = fib.ImageType;
+                    if (imgType == FREE_IMAGE_TYPE.FIT_RGBF || imgType == FREE_IMAGE_TYPE.FIT_RGBAF)
+                    {
+                        fib.TmoDrago03(0, 0);
+                    }
+                    // Ensure24BPP
+                    if (fib.IsTransparent || fib.ColorDepth > 24)
+                    {
+                        fib.ConvertColorDepth(FREE_IMAGE_COLOR_DEPTH.FICD_24_BPP);
+                    }
 
-                    ew.SetUserComment(metadata.ToJson());
+                    // FreeImage使ってexifの書き込みもしたかったが、jpegとwebpはReadしかできないらしいorz
+                    // https://stackoverflow.com/questions/69872943/cant-add-a-metadata-to-a-jpeg-image-using-freeimage
+                    using (var bmp = fib.ToBitmap())
+                    {
+                        var ew = new ExifWriter(bmp);
+                        ew.SetModel("ResoniteCamera");
+                        ew.SetMake("FrooxEngine");
+                        ew.SetDateTimeOriginal(photoMetadata.TimeTaken.Value);
+                        ew.SetDescription("Resonite Photo");
+                        ew.SetArtist(HasNonAsciiChars(metadata.TakeUserName) ? metadata.TakeUserId : metadata.TakeUserName);
+                        ew.SetSoftware("Resonite");
 
-                    img.Save(dstPath);
+                        ew.SetUserComment(metadata.ToJson());
+
+                        bmp.Save(dstPath, System.Drawing.Imaging.ImageFormat.Jpeg);
+                    }
                 }
             }
 
@@ -121,7 +143,6 @@ namespace SaveExif
                             num++;
                         }
                         while (File.Exists(str1));
-
                         if (_keepOriginalScreenshotFormat)
                         {
                             File.Copy(tmpPath, str1);
@@ -129,9 +150,7 @@ namespace SaveExif
                         }
                         else
                         {
-                            var convertedPath = tmpPath + ".tmp";
-                            TextureEncoder.ConvertToJPG(tmpPath, convertedPath);
-                            WriteExif(__instance, convertedPath, str1);
+                            SaveImage(__instance, tmpPath, str1);
                         }
                     }
                     catch (Exception ex)

@@ -47,6 +47,9 @@
     <Reference Include="MimeDetective">
       <HintPath>$(AppPath)$(AppName)_Data\Managed\MimeDetective.dll</HintPath>
     </Reference>
+    <Reference Include="FreeImageNET">
+      <HintPath>$(AppPath)$(AppName)_Data\Managed\FreeImageNET.dll</HintPath>
+    </Reference>
     <Reference Include="System.Text.Json">
       <HintPath>$(AppPath)$(AppName)_Data\Managed\System.Text.Json.dll</HintPath>
     </Reference>
