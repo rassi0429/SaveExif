@@ -14,7 +14,7 @@ namespace SaveExif
     {
         public override string Name => "SaveExif";
         public override string Author => "kka429";
-        public override string Version => "2.1.0";
+        public override string Version => "2.1.1";
         public override string Link => "https://github.com/rassi0429/SaveExif";
 
         private static bool _keepOriginalScreenshotFormat = false;

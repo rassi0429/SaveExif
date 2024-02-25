@@ -39,18 +39,18 @@ namespace SaveExif
         public SavedMetadata(PhotoMetadata photoMetadata)
         {
             LocationName = photoMetadata.LocationName;
-            LocationUrl = photoMetadata.LocationURL.Value.ToString();
-            var hostUser = photoMetadata.LocationHost.User.Target;
-            HostUserId = hostUser.UserID;
-            HostUserName = hostUser.UserName;
-            TimeTaken = photoMetadata.TimeTaken.Value.ToLocalTime().ToString();
-            var takeUser = photoMetadata.TakenBy.User.Target;
-            TakeUserId = takeUser.UserID;
-            TakeUserName = takeUser.UserName;
+            LocationUrl = photoMetadata.LocationURL?.Value?.ToString() ?? "";
+            var hostUser = photoMetadata.LocationHost?.User?.Target;
+            HostUserId = hostUser?.UserID ?? "";
+            HostUserName = hostUser?.UserName ?? "";
+            TimeTaken = (photoMetadata.TimeTaken?.Value ?? System.DateTime.Now).ToLocalTime().ToString();
+            var takeUser = photoMetadata.TakenBy?.User?.Target;
+            TakeUserId = takeUser?.UserID ?? "";
+            TakeUserName = takeUser?.UserName ?? "";
             ResoniteVersion = photoMetadata.AppVersion;
-            var presentUsers = photoMetadata.UserInfos.Select(info => info.User.User.Target);
-            PresentUserIdArray = presentUsers.Select(u => u.UserID).ToList();
-            PresentUserNameArray = presentUsers.Select(u => u.UserName).ToList();
+            var presentUsers = photoMetadata.UserInfos?.Select(info => info.User?.User?.Target);
+            PresentUserIdArray = presentUsers?.Select(u => u?.UserID ?? "").ToList() ?? new List<string>();
+            PresentUserNameArray = presentUsers?.Select(u => u?.UserName ?? "").ToList() ?? new List<string>();
             Version = CURRENT_VERSION;
         }
 
